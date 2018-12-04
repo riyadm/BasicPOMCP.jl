@@ -4,8 +4,8 @@ module BasicPOMCP
 #=
 Current constraints:
 - action space discrete
-- action space same for all states, histories (change this)
-- no built-in support for history-dependent rollouts (this could be added though)
+- action space same for all states, histories *change this*
+- no built-in support for history-dependent rollouts (this could be added though) *and this*
 - initial n and initial v are 0
 =#
 
@@ -144,13 +144,13 @@ function POMCPTree(pomdp::POMDP, sz::Int=1000)
                          )
 end    
 
-function insert_obs_node!(t::POMCPTree, pomdp::POMDP, ha::Int, o)
+function insert_obs_node!(t::POMCPTree, pomdp::POMDP, ha::Int, o, s)
     push!(t.total_n, 0)
-    push!(t.children, sizehint!(Int[], n_actions(pomdp)))
+    push!(t.children, sizehint!(Int[], n_actions(pomdp, s)))
     push!(t.o_labels, o)
     hao = length(t.total_n)
     t.o_lookup[(ha, o)] = hao
-    for a in actions(pomdp)
+    for a in actions(pomdp, s)
         n = insert_action_node!(t, hao, a)
         push!(t.children[hao], n)
     end
@@ -181,9 +181,9 @@ mutable struct POMCPPlanner{P, SE, RNG} <: Policy
 end
 
 function POMCPPlanner(solver::POMCPSolver, pomdp::POMDP)
-    println("estimate_value input: $(typeof(solver.estimate_value))")
+    #println("estimate_value input: $(typeof(solver.estimate_value))")
     se = convert_estimator(solver.estimate_value, solver, pomdp)
-    println("convert_estimator output: $(typeof(se))")
+    #println("convert_estimator output: $(typeof(se))")
     return POMCPPlanner(solver, pomdp, se, solver.rng, Int[], nothing)
 end
 

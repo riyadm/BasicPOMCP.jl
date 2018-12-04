@@ -2,7 +2,7 @@ function action_info(p::POMCPPlanner, b; tree_in_info=false)
     local a::actiontype(p.problem)
     info = Dict{Symbol, Any}()
     try
-        tree = POMCPTree(p.problem, p.solver.tree_queries)
+        tree = POMCPTree(p.problem, p.solver.tree_queries) #tree created from the planner, tree_queries=size
         a = search(p, b, tree, info)
         p._tree = tree
         if p.solver.tree_in_info || tree_in_info
@@ -63,11 +63,12 @@ function simulate(p::POMCPPlanner, s, hnode::POMCPObsNode, steps::Int)
     end
 
     t = hnode.tree
-    h = hnode.node #current node index
+    @show h = hnode.node #current node index
 
     ltn = log(t.total_n[h]) #total number of times h was visited
     best_nodes = empty!(p._best_node_mem)
     best_criterion_val = -Inf
+    
     for node in t.children[h]         #iterate over current node's children
         n = t.n[node]                 #number of times current children was visited
         if n == 0 && ltn <= 0.0       #first visit
@@ -77,6 +78,7 @@ function simulate(p::POMCPPlanner, s, hnode::POMCPObsNode, steps::Int)
         else
             criterion_value = t.v[node] + p.solver.c*sqrt(ltn/n)
         end
+        
         if criterion_value > best_criterion_val #if the value at node is larger than best, empty the best_nodes and push current one
             best_criterion_val = criterion_value
             empty!(best_nodes)
@@ -87,13 +89,14 @@ function simulate(p::POMCPPlanner, s, hnode::POMCPObsNode, steps::Int)
     end
     
     ha = rand(p.rng, best_nodes)
+    
     a = t.a_labels[ha]
 
     sp, o, r = generate_sor(p.problem, s, a, p.rng)
 
     hao = get(t.o_lookup, (ha, o), 0)
     if hao == 0
-        hao = insert_obs_node!(t, p.problem, ha, o)
+        hao = insert_obs_node!(t, p.problem, ha, o, s)
         v = estimate_value(p.solved_estimator,    #this should call the rollout..
                            p.problem,
                            sp,

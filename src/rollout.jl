@@ -38,7 +38,7 @@ estimate_value(f::Function, pomdp::POMDPs.POMDP, start_state, h::BeliefNode, ste
 estimate_value(n::Number, pomdp::POMDPs.POMDP, start_state, h::BeliefNode, steps::Int) = convert(Float64, n)
 
 function estimate_value(estimator::Union{SolvedPORollout,SolvedFORollout}, pomdp::POMDPs.POMDP, start_state, h::BeliefNode, steps::Int)
-    @show rollout(estimator, pomdp, start_state, h, steps)
+    rollout(estimator, pomdp, start_state, h, steps)
 end
 
 @POMDP_require estimate_value(estimator::Union{SolvedPORollout,SolvedFORollout}, pomdp::POMDPs.POMDP, start_state, h::BeliefNode, steps::Int) begin #this one is currently called by simulate()
@@ -72,13 +72,13 @@ function convert_estimator(est::FOValue, solver::AbstractPOMCPSolver, pomdp::POM
 end
 
 
+
 """
 Perform a rollout simulation to estimate the value.
 """
 function rollout(est::SolvedPORollout, pomdp::POMDPs.POMDP, start_state, h::BeliefNode, steps::Int)
     b = extract_belief(est.updater, h)
-    sim = RolloutSimulator(est.rng,
-                           steps)
+    sim = RolloutSimulator(est.rng, steps)
     return POMDPs.simulate(sim, pomdp, est.policy, est.updater, b, start_state)
 end
 
