@@ -4,7 +4,7 @@ module BasicPOMCP
 #=
 Current constraints:
 - action space discrete
-- action space same for all states, histories
+- action space same for all states, histories (change this)
 - no built-in support for history-dependent rollouts (this could be added though)
 - initial n and initial v are 0
 =#
@@ -181,7 +181,9 @@ mutable struct POMCPPlanner{P, SE, RNG} <: Policy
 end
 
 function POMCPPlanner(solver::POMCPSolver, pomdp::POMDP)
+    println("estimate_value input: $(typeof(solver.estimate_value))")
     se = convert_estimator(solver.estimate_value, solver, pomdp)
+    println("convert_estimator output: $(typeof(se))")
     return POMCPPlanner(solver, pomdp, se, solver.rng, Int[], nothing)
 end
 

@@ -38,10 +38,10 @@ estimate_value(f::Function, pomdp::POMDPs.POMDP, start_state, h::BeliefNode, ste
 estimate_value(n::Number, pomdp::POMDPs.POMDP, start_state, h::BeliefNode, steps::Int) = convert(Float64, n)
 
 function estimate_value(estimator::Union{SolvedPORollout,SolvedFORollout}, pomdp::POMDPs.POMDP, start_state, h::BeliefNode, steps::Int)
-    rollout(estimator, pomdp, start_state, h, steps)
+    @show rollout(estimator, pomdp, start_state, h, steps)
 end
 
-@POMDP_require estimate_value(estimator::Union{SolvedPORollout,SolvedFORollout}, pomdp::POMDPs.POMDP, start_state, h::BeliefNode, steps::Int) begin
+@POMDP_require estimate_value(estimator::Union{SolvedPORollout,SolvedFORollout}, pomdp::POMDPs.POMDP, start_state, h::BeliefNode, steps::Int) begin #this one is currently called by simulate()
     @subreq rollout(estimator, pomdp, start_state, h, steps)
 end
 
@@ -57,6 +57,7 @@ end
 
 function convert_estimator(ev::PORollout, solver, pomdp)
     policy = MCTS.convert_to_policy(ev.solver, pomdp)
+    println(policy)
     SolvedPORollout(policy, ev.updater, solver.rng)
 end
 
@@ -81,11 +82,14 @@ function rollout(est::SolvedPORollout, pomdp::POMDPs.POMDP, start_state, h::Beli
     return POMDPs.simulate(sim, pomdp, est.policy, est.updater, b, start_state)
 end
 
+
+
+
+
 @POMDP_require rollout(est::SolvedPORollout, pomdp::POMDPs.POMDP, start_state, h::BeliefNode, steps::Int) begin
     @req extract_belief(::typeof(est.updater), ::typeof(h))
     b = extract_belief(est.updater, h)
-    sim = RolloutSimulator(est.rng,
-                           steps)
+    sim = RolloutSimulator(est.rng, steps)
     @subreq POMDPs.simulate(sim, pomdp, est.policy, est.updater, b, start_state)
 end
 

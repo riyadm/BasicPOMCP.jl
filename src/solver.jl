@@ -27,9 +27,9 @@ function search(p::POMCPPlanner, b, t::POMCPTree, info::Dict)
         if CPUtime_us() - start_us >= 1e6*p.solver.max_time
             break
         end
-        s = rand(p.rng, b)
+        s = rand(p.rng, b) #sampling from initial state distribution at every tree query
         if !POMDPs.isterminal(p.problem, s)
-            simulate(p, s, POMCPObsNode(t, 1), p.solver.max_depth)
+            simulate(p, s, POMCPObsNode(t, 1), p.solver.max_depth) #passing the sampled state to simulate()
             all_terminal = false
         end
     end
@@ -39,7 +39,8 @@ function search(p::POMCPPlanner, b, t::POMCPTree, info::Dict)
     if all_terminal
         throw(AllSamplesTerminal(b))
     end
-
+    
+    #finding best action from root
     h = 1
     best_node = first(t.children[h])
     best_v = t.v[best_node]
@@ -60,30 +61,31 @@ function simulate(p::POMCPPlanner, s, hnode::POMCPObsNode, steps::Int)
     if steps == 0 || isterminal(p.problem, s)
         return 0.0
     end
-    
-    t = hnode.tree
-    h = hnode.node
 
-    ltn = log(t.total_n[h])
+    t = hnode.tree
+    h = hnode.node #current node index
+
+    ltn = log(t.total_n[h]) #total number of times h was visited
     best_nodes = empty!(p._best_node_mem)
     best_criterion_val = -Inf
-    for node in t.children[h]
-        n = t.n[node]
-        if n == 0 && ltn <= 0.0
+    for node in t.children[h]         #iterate over current node's children
+        n = t.n[node]                 #number of times current children was visited
+        if n == 0 && ltn <= 0.0       #first visit
             criterion_value = t.v[node]
         elseif n == 0 && t.v[node] == -Inf
             criterion_value = Inf
         else
             criterion_value = t.v[node] + p.solver.c*sqrt(ltn/n)
         end
-        if criterion_value > best_criterion_val
+        if criterion_value > best_criterion_val #if the value at node is larger than best, empty the best_nodes and push current one
             best_criterion_val = criterion_value
             empty!(best_nodes)
             push!(best_nodes, node)
-        elseif criterion_value == best_criterion_val
+        elseif criterion_value == best_criterion_val #same value, push another "best" node
             push!(best_nodes, node)
         end
     end
+    
     ha = rand(p.rng, best_nodes)
     a = t.a_labels[ha]
 
@@ -92,7 +94,7 @@ function simulate(p::POMCPPlanner, s, hnode::POMCPObsNode, steps::Int)
     hao = get(t.o_lookup, (ha, o), 0)
     if hao == 0
         hao = insert_obs_node!(t, p.problem, ha, o)
-        v = estimate_value(p.solved_estimator,
+        v = estimate_value(p.solved_estimator,    #this should call the rollout..
                            p.problem,
                            sp,
                            POMCPObsNode(t, hao),
