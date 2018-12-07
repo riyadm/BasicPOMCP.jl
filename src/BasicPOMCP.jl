@@ -127,8 +127,8 @@ struct POMCPTree{A,O}
     a_labels::Vector{A}                  # actual action corresponding to this action node
 end
 
-function POMCPTree(pomdp::POMDP, sz::Int=1000)
-    acts = collect(actions(pomdp))
+function POMCPTree(pomdp::POMDP, si, sz::Int=1000)
+    acts = collect(actions(pomdp, si))
     A = actiontype(pomdp)
     O = obstype(pomdp)
     sz = min(100_000, sz)
@@ -145,6 +145,7 @@ function POMCPTree(pomdp::POMDP, sz::Int=1000)
 end    
 
 function insert_obs_node!(t::POMCPTree, pomdp::POMDP, ha::Int, o, s)
+    #println("Node: $ha, Available actions: $(n_actions(pomdp, s))")
     push!(t.total_n, 0)
     push!(t.children, sizehint!(Int[], n_actions(pomdp, s)))
     push!(t.o_labels, o)
@@ -165,6 +166,13 @@ function insert_action_node!(t::POMCPTree, h::Int, a)
 end
 
 abstract type BeliefNode <: AbstractStateNode end
+
+struct AOHistoryNode{A, O} <: BeliefNode
+    tree::POMCPTree{A,O}
+    node::Int
+    loci::Vector{CartesianIndex}
+end
+
 
 struct POMCPObsNode{A,O} <: BeliefNode
     tree::POMCPTree{A,O}

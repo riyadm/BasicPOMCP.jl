@@ -1,9 +1,13 @@
 function action_info(p::POMCPPlanner, b; tree_in_info=false)
     local a::actiontype(p.problem)
+    best_node = 0
     info = Dict{Symbol, Any}()
     try
-        tree = POMCPTree(p.problem, p.solver.tree_queries) #tree created from the planner, tree_queries=size
-        a = search(p, b, tree, info)
+        si = rand(p.rng, b)
+        tree = POMCPTree(p.problem, si, p.solver.tree_queries) #tree created from the planner, tree_queries=size
+        best_node = search(p, b, tree, info)
+        a = tree.a_labels[best_node]
+        info[:best_node] = best_node
         p._tree = tree
         if p.solver.tree_in_info || tree_in_info
             info[:tree] = tree
@@ -29,7 +33,7 @@ function search(p::POMCPPlanner, b, t::POMCPTree, info::Dict)
         end
         s = rand(p.rng, b) #sampling from initial state distribution at every tree query
         if !POMDPs.isterminal(p.problem, s)
-            simulate(p, s, POMCPObsNode(t, 1), p.solver.max_depth) #passing the sampled state to simulate()
+            simulate(p, s, AOHistoryNode(t, 1, s.loci), p.solver.max_depth) #passing the sampled state to simulate()
             all_terminal = false
         end
     end
@@ -52,18 +56,18 @@ function search(p::POMCPPlanner, b, t::POMCPTree, info::Dict)
         end
     end
 
-    return t.a_labels[best_node]
+    return best_node
 end
 
 solve(solver::POMCPSolver, pomdp::POMDP) = POMCPPlanner(solver, pomdp)
 
-function simulate(p::POMCPPlanner, s, hnode::POMCPObsNode, steps::Int)
+function simulate(p::POMCPPlanner, s, hnode::AOHistoryNode, steps::Int)
     if steps == 0 || isterminal(p.problem, s)
         return 0.0
     end
 
     t = hnode.tree
-    @show h = hnode.node #current node index
+    h = hnode.node #current node index
 
     ltn = log(t.total_n[h]) #total number of times h was visited
     best_nodes = empty!(p._best_node_mem)
@@ -96,15 +100,15 @@ function simulate(p::POMCPPlanner, s, hnode::POMCPObsNode, steps::Int)
 
     hao = get(t.o_lookup, (ha, o), 0)
     if hao == 0
-        hao = insert_obs_node!(t, p.problem, ha, o, s)
+        hao = insert_obs_node!(t, p.problem, ha, o, sp)
         v = estimate_value(p.solved_estimator,    #this should call the rollout..
                            p.problem,
                            sp,
-                           POMCPObsNode(t, hao),
+                           AOHistoryNode(t, hao, sp.loci),
                            steps-1)
         R = r + discount(p.problem)*v
     else
-        R = r + discount(p.problem)*simulate(p, sp, POMCPObsNode(t, hao), steps-1)
+        R = r + discount(p.problem)*simulate(p, sp, AOHistoryNode(t, hao, sp.loci), steps-1)
     end
 
     t.total_n[h] += 1
